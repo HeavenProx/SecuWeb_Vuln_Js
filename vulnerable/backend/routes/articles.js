@@ -21,11 +21,11 @@ router.post('/search', async (req, res) => {
   );
 
   const { title } = req.body;
-  const sql = `SELECT * FROM articles WHERE title LIKE '%${title}%'`;
+  const sql = 'SELECT * FROM articles WHERE title LIKE ?';
   console.log(sql);
 
   try {
-    const [results] = await req.db.query(sql);
+    const [results] = await req.db.execute(sql, [`${title}%`]);
     res.json(results);
   } catch (err) {
     console.error('Erreur lors de la recherche des articles :', err);

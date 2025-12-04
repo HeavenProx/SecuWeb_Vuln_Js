@@ -1,18 +1,29 @@
 const express = require('express');
 const router = express.Router();
 const { generateToken } = require('../utils/jwt');
+const bcrypt = require('bcrypt');
+const SALT_ROUNDS = 10;
 
 // Route pour s'inscrire
 router.post('/register', async (req, res) => {
   const { username, email, password } = req.body;
-  const checkSql = 'SELECT * FROM users WHERE email = ? OR username = ?';
-  const insertSql = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+
   try {
-    const [existingUsers] = await req.db.execute(checkSql, [email, username]);
+    const [existingUsers] = await req.db.execute(
+      'SELECT * FROM users WHERE email = ? OR username = ?',
+      [email, username]
+    );
     if (existingUsers.length > 0) {
       return res.status(400).json({ error: 'Email ou nom d\'utilisateur déjà utilisé' });
     }
-    const [results] = await req.db.execute(insertSql, [username, email, password]);
+
+    // Hashage du mot de passe
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    const [results] = await req.db.execute(
+      'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+      [username, email, hashedPassword]
+    );
     res.status(201).json({ message: 'Utilisateur créé avec succès', id: results.insertId });
   } catch (err) {
     console.error('Erreur lors de l\'inscription :', err);

@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
 });
 
 // Route pour récupérer un utilisateur spécifique
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   const { id } = req.params;
   const sql = 'SELECT * FROM users WHERE id = ?';
   try {
@@ -31,7 +31,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Route pour supprimer un utilisateur
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, authorizeAdmin, async (req, res) => {
   const { id } = req.params;
   const sql = 'DELETE FROM users WHERE id = ?';
   try {
@@ -44,7 +44,11 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Route pour modifier un utilisateur
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
+  if (req.user.id !== Number(req.params.id) && req.user.role !== "admin") {
+    return res.status(403).json({ error: "Action interdite" });
+  }
+
   const { id } = req.params;
   const { username, email, password, role } = req.body;
   const sql = 'UPDATE users SET username = ?, email = ?, password = ?, role = ? WHERE id = ?';

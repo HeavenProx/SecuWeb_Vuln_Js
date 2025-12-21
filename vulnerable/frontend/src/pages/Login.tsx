@@ -13,25 +13,33 @@ const LoginPage = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password) {
       toast.error("Email et mot de passe sont requis.");
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      toast.error("Adresse email invalide.");
+      return;
+    }
+
     axiosInstance
-      .post("/auth/login", { email, password })
-      .then((response) => {
+      .post("/auth/login", { email: trimmedEmail, password })
+      .then((response: any) => {
         setUser(response.data.user);
         localStorage.setItem("authToken", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
         toast.success("Vous êtes connecté.");
         navigate("/");
       })
-      .catch((error) => {
+      .catch((error: any) => {
         console.error("Login failed:", error);
         toast.error(error.response?.data?.error || "Une erreur s'est produite lors de la connexion.");
       });
-  };
+  }; 
 
   return (
     <div className="main-bg p-4 flex">

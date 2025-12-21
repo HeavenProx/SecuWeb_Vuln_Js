@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
+const sanitizeHtml = require('sanitize-html');
+const { body, validationResult } = require('express-validator');
 
 // Route pour récupérer tous les articles
 router.get('/', async (req, res) => {
@@ -16,13 +18,8 @@ router.get('/', async (req, res) => {
 
 // Route pour chercher un article par titre
 router.post('/search', async (req, res) => {
-  console.log(
-    'req.body:', req.body,
-  );
-
   const { title } = req.body;
   const sql = 'SELECT * FROM articles WHERE title LIKE ?';
-  console.log(sql);
 
   try {
     const [results] = await req.db.execute(sql, [`${title}%`]);
@@ -50,15 +47,32 @@ router.get('/:id', async (req, res) => {
 });
 
 // Route pour créer un nouvel article
-router.post('/', async (req, res) => {
+router.post('/', [
+  body('title').isLength({ min: 3, max: 200 }).withMessage('Le titre doit contenir entre 3 et 200 caractères').trim().escape(),
+  body('content').isLength({ min: 1, max: 5000 }).withMessage('Le contenu doit contenir entre 1 et 5000 caractères'),
+  body('author_id').isInt().withMessage('author_id invalide')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   const { title, content, author_id } = req.body;
+  const cleanContent = sanitizeHtml(content, {
+    allowedTags: ['p', 'a', 'b', 'i', 'em', 'strong', 'h2', 'h3', 'section', 'ul', 'ol', 'li'],
+    allowedAttributes: { a: ['href', 'target', 'rel'] },
+    transformTags: {
+      'a': (tagName, attribs) => {
+        const href = attribs.href || '';
+        return { tagName: 'a', attribs: { href, target: attribs.target || '_blank', rel: 'noopener noreferrer' } };
+      }
+    }
+  }).trim();
   const sql = 'INSERT INTO articles (title, content, author_id) VALUES (?, ?, ?)';
   try {
-    const [results] = await req.db.execute(sql, [title, content, author_id]);
+    const [results] = await req.db.execute(sql, [title, cleanContent, author_id]);
     const newArticle = {
       id: results.insertId,
       title,
-      content,
+      content: cleanContent,
       author_id
     };
     res.status(201).json({ message: 'Article créé avec succès', article: newArticle });
@@ -69,21 +83,40 @@ router.post('/', async (req, res) => {
 });
 
 // Route pour modifier un article
-router.put('/:id', async (req, res) => {
+router.put('/:id', [
+  body('title').optional().isLength({ min: 3, max: 200 }).withMessage('Le titre doit contenir entre 3 et 200 caractères').trim().escape(),
+  body('content').optional().isLength({ min: 1, max: 5000 }).withMessage('Le contenu doit contenir entre 1 et 5000 caractères'),
+  body('author_id').optional().isInt().withMessage('author_id invalide')
+], async (req, res) => {
   const { id } = req.params;
-  const { title, content, author_id } = req.body;
-  const sql = 'UPDATE articles SET title = ?, content = ?, author_id = ? WHERE id = ?';
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
-    const [results] = await req.db.execute(sql, [title, content, author_id, id]);
-    if (results.affectedRows === 0) {
-      return res.status(404).json({ error: 'Article introuvable' });
+    const [existing] = await req.db.execute('SELECT * FROM articles WHERE id = ?', [id]);
+    if (existing.length === 0) return res.status(404).json({ error: 'Article introuvable' });
+
+    const title = req.body.title !== undefined ? req.body.title : existing[0].title;
+    const author_id = req.body.author_id !== undefined ? req.body.author_id : existing[0].author_id;
+    let content = existing[0].content;
+    if (req.body.content) {
+      content = sanitizeHtml(req.body.content, {
+        allowedTags: ['p', 'a', 'b', 'i', 'em', 'strong', 'h2', 'h3', 'section', 'ul', 'ol', 'li'],
+        allowedAttributes: { a: ['href', 'target', 'rel'] },
+        transformTags: {
+          'a': (tagName, attribs) => {
+            const href = attribs.href || '';
+            return { tagName: 'a', attribs: { href, target: attribs.target || '_blank', rel: 'noopener noreferrer' } };
+          }
+        }
+      }).trim();
     }
-    const updatedArticle = {
-      id,
-      title,
-      content,
-      author_id
-    };
+
+    const sql = 'UPDATE articles SET title = ?, content = ?, author_id = ? WHERE id = ?';
+    const [results] = await req.db.execute(sql, [title, content, author_id, id]);
+    if (results.affectedRows === 0) return res.status(404).json({ error: 'Article introuvable' });
+
+    const updatedArticle = { id, title, content, author_id };
     res.json({ message: 'Article modifié avec succès', article: updatedArticle });
   } catch (err) {
     console.error('Erreur lors de la modification de l\'article :', err);
@@ -107,4 +140,4 @@ router.delete('/:id', authenticate, authorizeAdmin, async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router; 

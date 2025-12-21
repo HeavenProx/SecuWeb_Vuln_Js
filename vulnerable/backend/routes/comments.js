@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
+const sanitizeHtml = require('sanitize-html');
+const { body, validationResult } = require('express-validator');
 
 // Route pour lister les commentaires d'un article
 router.get('/articles/:id/comments', async (req, res) => {
   const { id } = req.params;
   const sql = 'SELECT * FROM comments WHERE article_id = ?';
-  console.log(sql);
 
   try {
     const [results] = await req.db.execute(sql, [id]);
@@ -34,15 +35,25 @@ router.get('/comments/:id', async (req, res) => {
 });
 
 // Route pour ajouter un commentaire
-router.post('/articles/:id/comments', async (req, res) => {
+router.post('/articles/:id/comments', [
+  body('content').isLength({ min: 1, max: 1000 }).withMessage('Le commentaire doit contenir entre 1 et 1000 caractères'),
+  body('user_id').isInt().withMessage('user_id invalide')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { id } = req.params;
   const { content, user_id } = req.body;
+  const cleanContent = sanitizeHtml(content, { allowedTags: [], allowedAttributes: {} }).trim();
+
   const sql = 'INSERT INTO comments (user_id, article_id, content) VALUES (?, ?, ?)';
   try {
-    const [results] = await req.db.execute(sql, [user_id, id, content.trim()]);
+    const [results] = await req.db.execute(sql, [user_id, id, cleanContent]);
     const newComment = {
       id: results.insertId,
-      content,
+      content: cleanContent,
       user_id,
       article_id: id
     };
@@ -66,4 +77,4 @@ router.delete('/comments/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router; 

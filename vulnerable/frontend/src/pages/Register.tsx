@@ -12,20 +12,43 @@ const RegisterPage = () => {
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!username || !email || !password) {
+    const trimmedUsername = username.trim();
+    const trimmedEmail = email.trim();
+
+    // Client-side validations
+    if (!trimmedUsername || !trimmedEmail || !password) {
       toast.error("Tous les champs sont requis.");
       return;
     }
 
+    if (trimmedUsername.length < 3 || trimmedUsername.length > 30) {
+      toast.error("Le nom d'utilisateur doit contenir entre 3 et 30 caractères.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      toast.error("Adresse email invalide.");
+      return;
+    }
+
+    const passwordRegex = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W)/;
+    if (password.length < 8 || !passwordRegex.test(password)) {
+      toast.error("Le mot de passe doit contenir au moins 8 caractères, dont une majuscule, une minuscule, un chiffre et un caractère spécial.");
+      return;
+    }
+
     axiosInstance
-      .post("/auth/register", { username, email, password })
+      .post("/auth/register", { username: trimmedUsername, email: trimmedEmail, password })
       .then(() => {
         toast.success("Votre compte a été créé avec succès, veuillez vous connecter.");
         navigate("/login");
       })
-      .catch((error) => {
+      .catch((error: any) => {
         console.error("Registration failed:", error);
-        toast.error(error.response?.data?.error || "Une erreur s'est produite lors de l'inscription.");
+        // prefer server error message if available
+        const serverError = error.response?.data?.error || (error.response?.data?.errors && error.response.data.errors.map((e: any) => e.msg).join(', '));
+        toast.error(serverError || "Une erreur s'est produite lors de l'inscription.");
       });
   };
 

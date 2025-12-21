@@ -2,10 +2,26 @@ const express = require('express');
 const router = express.Router();
 const { generateToken } = require('../utils/jwt');
 const bcrypt = require('bcrypt');
+const { body, validationResult } = require('express-validator');
 const SALT_ROUNDS = 10;
 
 // Route pour s'inscrire
-router.post('/register', async (req, res) => {
+router.post('/register', [
+  body('username')
+    .isLength({ min: 3, max: 30 }).withMessage('Le nom d\'utilisateur doit contenir entre 3 et 30 caractères')
+    .trim().escape(),
+  body('email')
+    .isEmail().withMessage('Email invalide')
+    .normalizeEmail(),
+  body('password')
+    .isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères')
+    .matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W)/).withMessage('Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { username, email, password } = req.body;
 
   try {
@@ -32,7 +48,15 @@ router.post('/register', async (req, res) => {
 });
 
 // Route pour se connecter
-router.post('/login', async (req, res) => {
+router.post('/login', [
+  body('email').isEmail().withMessage('Email invalide').normalizeEmail(),
+  body('password').exists().withMessage('Mot de passe requis')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { email, password } = req.body;
   const sql = 'SELECT * FROM users WHERE email = ?';
   try {
@@ -41,11 +65,17 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Email incorrect' });
     }
     const user = results[0];
-    if (user.password !== password) {
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
       return res.status(401).json({ error: 'Mot de passe incorrect' });
     }
-    const token = generateToken(user);
-    res.json({ message: 'Connexion réussie', token, user });
+
+    // Do not expose password
+    const { password: _pwd, ...userSafe } = user;
+
+    const token = generateToken(userSafe);
+    res.json({ message: 'Connexion réussie', token, user: userSafe });
   } catch (err) {
     console.error('Erreur lors de la connexion :', err);
     res.status(500).json({ error: 'Erreur lors de la connexion' });

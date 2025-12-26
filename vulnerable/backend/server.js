@@ -6,8 +6,24 @@ require('dotenv').config();
 const initializeDbConnection = require('./db');
 
 const app = express();
-app.use(cors());
+
+// Configure CORS to whitelist allowed origins
+const { csrfProtection, allowedOrigins } = require('./middlewares/csrfProtection');
+const corsOptions = {
+  origin: function(origin, callback) {
+    // allow requests with no origin (like curl/postman) - treat them separately
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  }
+};
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
+
+// Add CSRF protection for mutating requests
+app.use(csrfProtection);
 
 const startServer = async () => {
   try {

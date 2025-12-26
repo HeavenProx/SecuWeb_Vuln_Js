@@ -6,7 +6,9 @@ const { body, validationResult } = require('express-validator');
 const SALT_ROUNDS = 10;
 
 // Route pour s'inscrire
-router.post('/register', [
+const { createAccountLimiter, loginLimiter } = require('../middlewares/rateLimit');
+
+router.post('/register', createAccountLimiter, [
   body('username')
     .isLength({ min: 3, max: 30 }).withMessage('Le nom d\'utilisateur doit contenir entre 3 et 30 caractères')
     .trim().escape(),
@@ -48,7 +50,7 @@ router.post('/register', [
 });
 
 // Route pour se connecter
-router.post('/login', [
+router.post('/login', loginLimiter, [
   body('email').isEmail().withMessage('Email invalide').normalizeEmail(),
   body('password').exists().withMessage('Mot de passe requis')
 ], async (req, res) => {

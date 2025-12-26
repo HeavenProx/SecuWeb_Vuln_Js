@@ -34,8 +34,9 @@ router.get('/comments/:id', async (req, res) => {
   }
 });
 
-// Route pour ajouter un commentaire
-router.post('/articles/:id/comments', [
+// Route pour ajouter un commentaire (auth et rate limit)
+const { commentLimiter } = require('../middlewares/rateLimit');
+router.post('/articles/:id/comments', authenticate, commentLimiter, [
   body('content').isLength({ min: 1, max: 1000 }).withMessage('Le commentaire doit contenir entre 1 et 1000 caractères'),
   body('user_id').isInt().withMessage('user_id invalide')
 ], async (req, res) => {
@@ -47,6 +48,11 @@ router.post('/articles/:id/comments', [
   const { id } = req.params;
   const { content, user_id } = req.body;
   const cleanContent = sanitizeHtml(content, { allowedTags: [], allowedAttributes: {} }).trim();
+
+  // Ensure the authenticated user matches the user_id in the request
+  if (Number(req.user.id) !== Number(user_id) && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Accès interdit : user_id ne correspond pas au token' });
+  }
 
   const sql = 'INSERT INTO comments (user_id, article_id, content) VALUES (?, ?, ?)';
   try {
@@ -65,7 +71,7 @@ router.post('/articles/:id/comments', [
 });
 
 // Route pour supprimer un commentaire (admin seulement)
-router.delete('/comments/:id', async (req, res) => {
+router.delete('/comments/:id', authenticate, authorizeAdmin, async (req, res) => {
   const { id } = req.params;
   const sql = 'DELETE FROM comments WHERE id = ?';
   try {

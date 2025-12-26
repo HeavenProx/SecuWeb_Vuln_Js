@@ -5,9 +5,9 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
 const SALT_ROUNDS = 10;
 
-// Route pour lister les utilisateurs
-router.get('/', async (req, res) => {
-  const sql = 'SELECT * FROM users';
+// Route pour lister les utilisateurs (admin uniquement)
+router.get('/', authenticate, authorizeAdmin, async (req, res) => {
+  const sql = 'SELECT id, username, email, role FROM users';
   try {
     const [results] = await req.db.execute(sql);
     res.json(results);
@@ -17,14 +17,43 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Route publique minimale pour récupérer le username par liste d'ids (ex. /users/public?ids=1,2,3)
+router.get('/public', async (req, res) => {
+  try {
+    const idsParam = req.query.ids;
+    if (!idsParam) {
+      return res.status(400).json({ error: 'Paramètre ids manquant (ex: ?ids=1,2,3)' });
+    }
+    const ids = Array.isArray(idsParam)
+      ? idsParam.map(Number).filter(Number.isFinite)
+      : String(idsParam).split(',').map(s => s.trim()).filter(Boolean).map(Number).filter(Number.isFinite);
+    if (ids.length === 0) {
+      return res.json([]);
+    }
+    const placeholders = ids.map(() => '?').join(',');
+    const sql = `SELECT id, username FROM users WHERE id IN (${placeholders})`;
+    const [results] = await req.db.execute(sql, ids);
+    res.json(results);
+  } catch (err) {
+    console.error('Erreur lors de la récupération publique des utilisateurs :', err);
+    res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs' });
+  }
+});
+
 // Route pour récupérer un utilisateur spécifique
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   const { id } = req.params;
-  const sql = 'SELECT * FROM users WHERE id = ?';
+
+  // seuls l'admin ou l'utilisateur lui-même peuvent voir ces infos
+  if (req.user.role !== 'admin' && String(req.user.id) !== String(id)) {
+    return res.status(403).json({ error: 'Accès interdit' });
+  }
+
+  const sql = 'SELECT id, username, email, role FROM users WHERE id = ?';
   try {
     const [results] = await req.db.execute(sql, [id]);
     if (results.length === 0) {
-      res.status(404).json({ error: 'Utilisateur introuvable' });
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
     res.json(results[0]);
   } catch (err) {
@@ -33,9 +62,15 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Route pour supprimer un utilisateur
-router.delete('/:id', async (req, res) => {
+// Route pour supprimer un utilisateur (admin ou propriétaire seulement)
+router.delete('/:id', authenticate, async (req, res) => {
   const { id } = req.params;
+
+  // seuls l'admin ou l'utilisateur lui-même peuvent supprimer le compte
+  if (req.user.role !== 'admin' && String(req.user.id) !== String(id)) {
+    return res.status(403).json({ error: 'Accès interdit' });
+  }
+
   const sql = 'DELETE FROM users WHERE id = ?';
   try {
     await req.db.execute(sql, [id]);

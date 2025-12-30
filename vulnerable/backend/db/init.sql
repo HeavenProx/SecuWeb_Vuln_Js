@@ -6,17 +6,18 @@ USE blog;
 -- Table des utilisateurs
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(254) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role ENUM('user', 'admin') DEFAULT 'user',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CHECK (CHAR_LENGTH(username) BETWEEN 3 AND 30)
 );
 
 -- Table des articles
 CREATE TABLE IF NOT EXISTS articles (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
+    title VARCHAR(200) NOT NULL,
     content TEXT NOT NULL,
     author_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -36,8 +37,8 @@ CREATE TABLE IF NOT EXISTS comments (
 
 -- Insertion de données par défaut
 INSERT INTO users (username, email, password, role) VALUES
-('admin', 'admin@example.com', 'admin', 'admin'),
-('user', 'user@example.com', 'user', 'user');
+('admin', 'admin@example.com', '$2b$10$XlARyhRuiXPd2n9803elN.x22yMO5Ht99HMtugDoWd5qN5JiPLLvW', 'admin'),
+('user', 'user@example.com', '$2b$10$GnZGNyxbVm30W/xB059c5eUqjzfSiu54mfG7hpUaWMEuPien785dm', 'user');
 
 INSERT INTO articles (title, content, author_id) VALUES
 ('Les Meilleures Pratiques pour la Sécurité du Web', "<p>Assurez la sécurité de vos applications web en adoptant ces pratiques essentielles.</p><section><h2>1. Protéger les données sensibles</h2><p>La protection des données sensibles, telles que les mots de passe et les informations personnelles des utilisateurs, est cruciale. Utilisez des algorithmes de hachage robustes, comme bcrypt ou Argon2, pour stocker les mots de passe. Ne jamais transmettre des données sensibles en clair : implémentez des connexions sécurisées avec HTTPS grâce à TLS. Enfin, veillez à limiter l'accès aux données sensibles uniquement aux parties autorisées.</p></section><section><h2>2. Prévenir les injections</h2><p>Les attaques par injection, notamment l'injection SQL et l'injection de commandes, figurent parmi les vulnérabilités les plus courantes. Pour les prévenir, utilisez des requêtes préparées et des ORM (Object-Relational Mapping) dans vos interactions avec les bases de données. Validez et nettoyez toujours les entrées des utilisateurs afin d'empêcher l'injection de code malveillant dans vos systèmes.</p></section><section><h2>3. Protéger contre les attaques XSS</h2><p>Les attaques XSS (Cross-Site Scripting) consistent à injecter des scripts malveillants dans les pages web d'un site. Pour les éviter, encodez les données de sortie (comme le HTML ou le JavaScript) avant de les afficher dans le navigateur. Utilisez également des Content Security Policies (CSP) pour limiter l'exécution des scripts et minimiser les risques associés.</p></section><section><h2>4. Mettre en œuvre une authentification robuste</h2><p>Une authentification robuste est essentielle pour protéger vos utilisateurs. Implémentez des politiques de mots de passe fortes, exigeant des combinaisons de caractères complexes. Encouragez ou imposez l'utilisation de l'authentification multi-facteurs (MFA) pour ajouter une couche de sécurité supplémentaire. Enfin, limitez le nombre de tentatives de connexion pour prévenir les attaques par force brute.</p></section><section><h2>5. Suivre les mises à jour et surveiller les vulnérabilités</h2><p>Les logiciels obsolètes et les bibliothèques non maintenues représentent des risques majeurs pour la sécurité. Assurez-vous de maintenir votre système à jour en appliquant régulièrement les correctifs de sécurité. De plus, surveillez activement les vulnérabilités dans vos dépendances et mettez en place des outils d'analyse pour identifier les failles potentielles dans votre code.</p></section>"

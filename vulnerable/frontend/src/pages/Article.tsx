@@ -34,35 +34,45 @@ const ArticlePage = () => {
   const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    // Récupérer les détails de l'article
-    axiosInstance
-      .get(`/articles/${id}`)
-      .then((response) => setArticle(response.data))
-      .catch((error) => {
-        console.error("Erreur lors de la récupération de l'article :", error);
+    // Récupérer article + commentaires, puis récupérer uniquement les usernames nécessaires via l'endpoint public
+    const fetchData = async () => {
+      try {
+        // Récupérer article et commentaires (si ça échoue -> not-found)
+        const [articleResp, commentsResp] = await Promise.all([
+          axiosInstance.get(`/articles/${id}`),
+          axiosInstance.get(`/articles/${id}/comments`)
+        ]);
+        const articleData = articleResp.data;
+        setArticle(articleData);
+        const commentsData = commentsResp.data;
+        setComments(commentsData);
+
+        // Construire la liste d'ids à demander
+        const idsSet = new Set<number>();
+        if (articleData && articleData.author_id) idsSet.add(Number(articleData.author_id));
+        commentsData.forEach((c: Comment) => idsSet.add(Number(c.user_id)));
+
+        // Récupérer les usernames publics (si ça échoue -> on continue sans bloquer la page)
+        if (idsSet.size > 0) {
+          const idsParam = Array.from(idsSet).join(',');
+          try {
+            const usersResp = await axiosInstance.get(`/users/public?ids=${idsParam}`);
+            setUsers(usersResp.data);
+          } catch (err) {
+            console.error('Erreur lors de la récupération des usernames publics :', err);
+            setUsers([]);
+          }
+        } else {
+          setUsers([]);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération de l'article ou des utilisateurs :", error);
         toast.error("Impossible de charger l'article.");
         return navigate("/not-found");
-      });
+      }
+    };
 
-    // Récupérer les utilisateurs
-    axiosInstance
-      .get("/users")
-      .then((response) => setUsers(response.data))
-      .catch((error) => {
-        console.error("Erreur lors de la récupération des utilisateurs :", error);
-        toast.error("Impossible de charger les utilisateurs.");
-      });
-
-    // Récupérer les commentaires de l'article
-    axiosInstance
-      .get(`/articles/${id}/comments`)
-      .then((response) => {
-        setComments(response.data)
-      })
-      .catch((error) => {
-        console.error("Erreur lors de la récupération des commentaires :", error);
-        toast.error("Impossible de charger les commentaires.");
-      });
+    fetchData();
 
   }, [id]);
 
@@ -116,7 +126,7 @@ const ArticlePage = () => {
               <ul className="space-y-4">
                 {comments.map((comment) => (
                   <li key={comment.id} className="border rounded-lg p-4 bg-base-100 shadow-md">
-                    <p dangerouslySetInnerHTML={{ __html: comment.content }}></p>
+                    <p>{comment.content}</p>
                     <p className="text-sm text-gray-500 mt-2">
                       Par : {
                         users.find((u) => Number(u.id) === Number(comment.user_id))?.username || "Utilisateur inconnu"

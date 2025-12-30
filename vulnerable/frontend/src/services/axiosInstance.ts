@@ -2,16 +2,17 @@ import axios from "axios";
 
 // Crée une instance d'axios avec une configuration par défaut
 const axiosInstance = axios.create({
-  baseURL: "http://127.0.0.1:4001/api", // L'URL de ton backend (ajuste si nécessaire)
+  baseURL: "http://127.0.0.1:4001/api", 
   headers: {
     "Content-Type": "application/json",
+    "X-Requested-With": "XMLHttpRequest",
   },
 });
 
 // Ajoute un intercepteur de requête pour ajouter un token d'authentification (si nécessaire)
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("authToken"); // Récupère le token depuis le localStorage (ou autre stockage)
+    const token = localStorage.getItem("authToken"); 
     if (token) {
       config.headers["Authorization"] = `Bearer ${token}`;
     }

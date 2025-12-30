@@ -17,7 +17,7 @@ router.get('/', authenticate, authorizeAdmin, async (req, res) => {
   }
 });
 
-// Route publique minimale pour récupérer le username par liste d'ids (ex. /users/public?ids=1,2,3)
+// Route publique minimale pour récupérer le username par liste d'ids (ex /users/public?ids=1,2,3)
 router.get('/public', async (req, res) => {
   try {
     const idsParam = req.query.ids;
@@ -93,8 +93,8 @@ router.put('/:id', authenticate, [
     return res.status(400).json({ errors: errors.array() });
   }
 
-  // - admin : peut modifier n'importe quel user
-  // - user normal : ne peut modifier que son compte
+  // admin : peut modifier n'importe quel user
+  // user : ne peut modifier que son compte
   if (req.user.role !== 'admin' && String(req.user.id) !== String(id)) {
     return res.status(403).json({ error: 'Accès interdit' });
   }
@@ -134,12 +134,12 @@ router.put('/:id', authenticate, [
   }
 });
 
-// Route pour modifier le rôle d'un utilisateur (admin uniquement)
+// Route pour modifier le user role (admin)
 router.put('/:id/role', authenticate, authorizeAdmin, async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
 
-  // Whitelist des rôles autorisés
+  // Whitelist des roles autorisés
   const allowedRoles = ['user', 'admin'];
 
   if (!allowedRoles.includes(role)) {

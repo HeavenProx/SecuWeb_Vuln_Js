@@ -18,7 +18,7 @@ router.get('/articles/:id/comments', async (req, res) => {
   }
 });
 
-// Route pour récupérer un commentaire spécifique
+// Route pour récupérer un commentaire
 router.get('/comments/:id', async (req, res) => {
   const { id } = req.params;
   const sql = 'SELECT * FROM comments WHERE id = ?';
@@ -49,7 +49,6 @@ router.post('/articles/:id/comments', authenticate, commentLimiter, [
   const { content, user_id } = req.body;
   const cleanContent = sanitizeHtml(content, { allowedTags: [], allowedAttributes: {} }).trim();
 
-  // Ensure the authenticated user matches the user_id in the request
   if (Number(req.user.id) !== Number(user_id) && req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Accès interdit : user_id ne correspond pas au token' });
   }

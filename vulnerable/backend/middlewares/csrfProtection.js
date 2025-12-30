@@ -1,6 +1,3 @@
-// Simple CSRF protection middleware based on Origin/Referer and X-Requested-With header
-// Note: this is a pragmatic server-side protection for SPA + token authentication
-
 const allowedOrigins = (process.env.FRONTEND_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim()).filter(Boolean);
 
 function isOriginAllowed(origin) {
@@ -14,7 +11,6 @@ function isRefererAllowed(referer) {
 }
 
 const csrfProtection = (req, res, next) => {
-  // only apply to mutating methods
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
@@ -29,7 +25,7 @@ const csrfProtection = (req, res, next) => {
   const ajaxHeaderOk = xRequestedWith && xRequestedWith.toLowerCase() === 'xmlhttprequest';
   const hasAuthHeader = authHeader && authHeader.toLowerCase().startsWith('bearer ');
 
-  // Allow if request comes from allowed origin, allowed referer, ajax header (XHR), or contains Authorization bearer token
+  // bloque la requete si aucune des conditions n'est remplie
   if (!originOk && !refererOk && !ajaxHeaderOk && !hasAuthHeader) {
     return res.status(403).json({ error: 'Requête bloquée (CSRF protection)' });
   }

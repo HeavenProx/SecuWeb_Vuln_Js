@@ -73,7 +73,7 @@ router.post('/login', loginLimiter, [
       return res.status(401).json({ error: 'Mot de passe incorrect' });
     }
 
-    // Do not expose password
+    // Pas exposer le password
     const { password: _pwd, ...userSafe } = user;
 
     const token = generateToken(userSafe);

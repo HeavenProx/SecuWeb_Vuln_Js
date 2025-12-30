@@ -46,7 +46,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Route pour créer un nouvel article
+// Route pour créer un article
 router.post('/', [
   body('title').isLength({ min: 3, max: 200 }).withMessage('Le titre doit contenir entre 3 et 200 caractères').trim().escape(),
   body('content').isLength({ min: 1, max: 5000 }).withMessage('Le contenu doit contenir entre 1 et 5000 caractères'),
